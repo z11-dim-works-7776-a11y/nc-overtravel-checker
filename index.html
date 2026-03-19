@@ -44,7 +44,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.5rem;
         }
 
         header h1 {
@@ -131,7 +131,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 3rem;
+            padding: 1.5rem;
             border: 2px dashed var(--card-border);
             border-radius: 12px;
             background-color: rgba(15, 23, 42, 0.5);
@@ -728,6 +728,12 @@
                     `;
                 }
             }
+
+            // 判定結果が見えやすいように少しスクロールさせる
+            setTimeout(() => {
+                const y = statusBanner.getBoundingClientRect().top + window.scrollY - 20;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }, 50);
         }
 
         // 簡易的なXSS対策
