@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NC Data Overtravel Checker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #0ea5e9;
+            --accent-hover: #0284c7;
+            --safe-color: #10b981;
+            --safe-bg: rgba(16, 185, 129, 0.1);
+            --danger-color: #f43f5e;
+            --danger-bg: rgba(244, 63, 94, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 2rem;
+            background-image: radial-gradient(circle at top right, #1e293b, transparent 40%),
+                              radial-gradient(circle at bottom left, #0f172a, transparent 40%);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        .file-upload {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            border: 2px dashed var(--card-border);
+            border-radius: 12px;
+            background-color: rgba(15, 23, 42, 0.5);
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent);
+            background-color: rgba(14, 165, 233, 0.05);
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-text {
+            text-align: center;
+        }
+
+        .file-upload-text span {
+            display: block;
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-upload-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .results-area {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-banner {
+            padding: 2rem;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .status-banner.safe {
+            background-color: var(--safe-bg);
+            border-color: var(--safe-color);
+            color: var(--safe-color);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .status-banner.danger {
+            background-color: var(--danger-bg);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
+        }
+
+        .status-banner h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .error-list-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--danger-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .error-list-header {
+            background-color: rgba(244, 63, 94, 0.1);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .error-list-header h3 {
+            color: var(--danger-color);
+            font-size: 1.1rem;
+        }
+
+        .error-count {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .error-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .error-table th, .error-table td {
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .error-table th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.9rem;
+            background-color: rgba(15, 23, 42, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .error-table tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .error-table td {
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+        }
+
+        .col-line { width: 80px; color: var(--text-secondary); }
+        .col-code { color: var(--accent); }
+        .col-val { color: var(--danger-color); text-align: right; }
+
+        .file-info {
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>NC Overtravel Checker</h1>
+            <p>FANUC形式NCプログラム自動判定ツール</p>
+        </header>
+
+        <div class="settings-grid">
+            <div class="card">
+                <h2>1. ベッドサイズ設定 (mm)</h2>
+                <div class="input-group">
+                    <label for="bedX">X方向 (最大ストローク):</label>
+                    <input type="number" id="bedX" value="700" step="any">
+                </div>
+                <div class="input-group">
+                    <label for="bedY">Y方向 (最大ストローク):</label>
+                    <input type="number" id="bedY" value="400" step="any">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>2. ワーク原点 G54 (mm)</h2>
+                <div class="input-group">
+                    <label for="originX">X方向 (機械左手前ゼロ点から):</label>
+                    <input type="number" id="originX" value="50" step="any">
+                </div>
+                <div class="input-group">
+                    <label for="originY">Y方向 (機械左手前ゼロ点から):</label>
+                    <input type="number" id="originY" value="50" step="any">
+                </div>
+            </div>
+        </div>
+
+        <div class="card upload-card">
+            <h2>3. NCファイル読み込み</h2>
+            <div class="file-upload" id="dropZone">
+                <input type="file" id="ncFile" accept=".nc,.txt,.tap,.cnc">
+                <div class="file-upload-text">
+                    <span id="uploadLabel">クリックしてファイルを選択するか、ここにドラッグ＆ドロップ</span>
+                    <p>対応フォーマット: .nc, .txt, .tap, .cnc</p>
+                </div>
+            </div>
+            <div id="fileInfo" class="file-info hidden"></div>
+        </div>
+
+        <div id="resultsArea" class="results-area hidden">
+            <div class="status-banner" id="statusBanner">
+                <h2 id="statusText">SAFE</h2>
+                <p id="statusDesc">オーバートラベルは検出されませんでした</p>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>X座標 絶対位置 (mm)</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">最小</span>
+                            <span class="stat-value" id="minX">0.000</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">最大</span>
+                            <span class="stat-value" id="maxX">0.000</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>Y座標 絶対位置 (mm)</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">最小</span>
+                            <span class="stat-value" id="minY">0.000</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">最大</span>
+                            <span class="stat-value" id="maxY">0.000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorContainer" class="error-list-card hidden">
+                <div class="error-list-header">
+                    <h3>オーバートラベル エラー詳細</h3>
+                    <span class="error-count" id="errorCount">0 errors</span>
+                </div>
+                <div style="max-height: 400px; overflow-y: auto; position: relative;">
+                    <table class="error-table">
+                        <thead>
+                            <tr>
+                                <th class="col-line">行番号</th>
+                                <th class="col-code">Gコード内容</th>
+                                <th class="col-val">判定X (mm)</th>
+                                <th class="col-val">判定Y (mm)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorList">
+                            <!-- エラー行が追加されます -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('ncFile');
+        const dropZone = document.getElementById('dropZone');
+        const uploadLabel = document.getElementById('uploadLabel');
+        const fileInfo = document.getElementById('fileInfo');
+        
+        const resultsArea = document.getElementById('resultsArea');
+        const statusBanner = document.getElementById('statusBanner');
+        const statusText = document.getElementById('statusText');
+        const statusDesc = document.getElementById('statusDesc');
+        
+        const minXEl = document.getElementById('minX');
+        const maxXEl = document.getElementById('maxX');
+        const minYEl = document.getElementById('minY');
+        const maxYEl = document.getElementById('maxY');
+        
+        const errorContainer = document.getElementById('errorContainer');
+        const errorList = document.getElementById('errorList');
+        const errorCount = document.getElementById('errorCount');
+
+        let fileContentStore = null;
+
+        // 設定値の変更を監視して再計算
+        ['bedX', 'bedY', 'originX', 'originY'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (fileContentStore) analyzeNCData();
+            });
+        });
+
+        // ドラッグ＆ドロップ対応
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent)';
+            dropZone.style.backgroundColor = 'rgba(14, 165, 233, 0.1)';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--card-border)';
+            dropZone.style.backgroundColor = 'rgba(15, 23, 42, 0.5)';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--card-border)';
+            dropZone.style.backgroundColor = 'rgba(15, 23, 42, 0.5)';
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            uploadLabel.textContent = file.name;
+            fileInfo.textContent = `サイズ: ${(file.size / 1024).toFixed(1)} KB`;
+            fileInfo.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                fileContentStore = event.target.result;
+                analyzeNCData();
+            };
+            reader.readAsText(file);
+        }
+
+        function analyzeNCData() {
+            if (!fileContentStore) return;
+
+            const bedX = parseFloat(document.getElementById('bedX').value) || 0;
+            const bedY = parseFloat(document.getElementById('bedY').value) || 0;
+            const originX = parseFloat(document.getElementById('originX').value) || 0;
+            const originY = parseFloat(document.getElementById('originY').value) || 0;
+
+            const lines = fileContentStore.split(/\r?\n/);
+            
+            let minX = Infinity;
+            let maxX = -Infinity;
+            let minY = Infinity;
+            let maxY = -Infinity;
+            
+            // XYZの現在地を保持（初期値は0）
+            let currentNCX = 0;
+            let currentNCY = 0;
+            let hasCoordinates = false;
+            
+            const errors = [];
+
+            // 正規表現で X と Y の後の数値を抽出
+            const regexX = /X([+-]?\d*\.?\d+)/;
+            const regexY = /Y([+-]?\d*\.?\d+)/;
+
+            lines.forEach((line, index) => {
+                let code = line.trim();
+                if (!code) return; // 空行スキップ
+
+                // コメント () の除外処理
+                const commentIndex = code.indexOf('(');
+                if (commentIndex !== -1) {
+                    code = code.substring(0, commentIndex);
+                }
+
+                if (!code) return;
+
+                const xMatch = code.match(regexX);
+                const yMatch = code.match(regexY);
+
+                let moved = false;
+
+                if (xMatch) {
+                    currentNCX = parseFloat(xMatch[1]);
+                    moved = true;
+                    hasCoordinates = true;
+                }
+                if (yMatch) {
+                    currentNCY = parseFloat(yMatch[1]);
+                    moved = true;
+                    hasCoordinates = true;
+                }
+
+                if (moved) {
+                    // 機械座標系での絶対位置を計算
+                    const absX = originX + currentNCX;
+                    const absY = originY + currentNCY;
+
+                    // 最小・最大の更新
+                    if (absX < minX) minX = absX;
+                    if (absX > maxX) maxX = absX;
+                    if (absY < minY) minY = absY;
+                    if (absY > maxY) maxY = absY;
+
+                    // オーバートラベル判定（ベッド範囲外か）
+                    const isOverX = absX < 0 || absX > bedX;
+                    const isOverY = absY < 0 || absY > bedY;
+
+                    if (isOverX || isOverY) {
+                        errors.push({
+                            lineNum: index + 1,
+                            codeContent: line, // 元の行全体を表示
+                            absX: absX,
+                            absY: absY,
+                            isOverX: isOverX,
+                            isOverY: isOverY
+                        });
+                    }
+                }
+            });
+
+            renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY);
+        }
+
+        function renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY) {
+            resultsArea.classList.remove('hidden');
+
+            if (!hasCoordinates) {
+                minXEl.textContent = '---';
+                maxXEl.textContent = '---';
+                minYEl.textContent = '---';
+                maxYEl.textContent = '---';
+                
+                statusBanner.className = 'status-banner safe';
+                statusText.textContent = 'NO DATA';
+                statusDesc.textContent = 'NCプログラム内にXYの座標指定が見つかりませんでした。';
+                errorContainer.classList.add('hidden');
+                return;
+            }
+
+            minXEl.textContent = minX.toFixed(3);
+            maxXEl.textContent = maxX.toFixed(3);
+            minYEl.textContent = minY.toFixed(3);
+            maxYEl.textContent = maxY.toFixed(3);
+
+            // 全体がベッドサイズを超えている場合は赤いテキストにする
+            minXEl.style.color = (minX < 0) ? 'var(--danger-color)' : 'var(--text-primary)';
+            maxXEl.style.color = (maxX > bedX) ? 'var(--danger-color)' : 'var(--text-primary)';
+            minYEl.style.color = (minY < 0) ? 'var(--danger-color)' : 'var(--text-primary)';
+            maxYEl.style.color = (maxY > bedY) ? 'var(--danger-color)' : 'var(--text-primary)';
+
+            if (errors.length === 0) {
+                statusBanner.className = 'status-banner safe';
+                statusText.textContent = 'SAFE';
+                statusDesc.textContent = 'ベッドサイズの範囲内に収まっています';
+                errorContainer.classList.add('hidden');
+            } else {
+                statusBanner.className = 'status-banner danger';
+                statusText.textContent = 'OVERTRAVEL';
+                statusDesc.textContent = `限界を超えた箇所が ${errors.length} 件見つかりました`;
+                
+                errorContainer.classList.remove('hidden');
+                errorCount.textContent = `${errors.length} errors`;
+                
+                const displayErrors = errors.slice(0, 500); 
+                errorList.innerHTML = displayErrors.map(err => {
+                    const xColor = err.isOverX ? 'color: var(--danger-color); font-weight: bold;' : '';
+                    const yColor = err.isOverY ? 'color: var(--danger-color); font-weight: bold;' : '';
+                    
+                    return `
+                        <tr>
+                            <td class="col-line">${err.lineNum}</td>
+                            <td class="col-code">${htmlEscape(err.codeContent)}</td>
+                            <td class="col-val" style="${xColor}">${err.absX.toFixed(3)}</td>
+                            <td class="col-val" style="${yColor}">${err.absY.toFixed(3)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                if (errors.length > 500) {
+                    errorList.innerHTML += `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 1rem;">
+                                ※エラー数が多すぎます。最初の500件のみ表示しています。
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+
+        // 簡易的なXSS対策
+        function htmlEscape(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
