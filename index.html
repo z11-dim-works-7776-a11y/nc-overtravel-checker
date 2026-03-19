@@ -211,11 +211,19 @@
             margin-bottom: 0.5rem;
         }
 
-        .summary-grid {
+        .summary-grid, .summary-grid-3 {
             display: grid;
-            grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
             margin-bottom: 1.5rem;
+        }
+
+        .summary-grid { grid-template-columns: 1fr 1fr; }
+        .summary-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        @media (max-width: 768px) {
+            .settings-grid, .summary-grid, .summary-grid-3 {
+                grid-template-columns: 1fr;
+            }
         }
 
         .summary-card {
@@ -382,6 +390,32 @@
                 <p id="statusDesc">オーバートラベルは検出されませんでした</p>
             </div>
 
+            <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary); text-align: center;">NCデータ内 座標 (加工プログラムの生の数値)</h3>
+            <div class="summary-grid-3">
+                <div class="summary-card">
+                    <h3>X座標 (mm)</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item"><span class="stat-label">最小</span><span class="stat-value" id="minNCX">0.000</span></div>
+                        <div class="stat-item"><span class="stat-label">最大</span><span class="stat-value" id="maxNCX">0.000</span></div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>Y座標 (mm)</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item"><span class="stat-label">最小</span><span class="stat-value" id="minNCY">0.000</span></div>
+                        <div class="stat-item"><span class="stat-label">最大</span><span class="stat-value" id="maxNCY">0.000</span></div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>Z座標 (mm)</h3>
+                    <div class="summary-stats">
+                        <div class="stat-item"><span class="stat-label">最小</span><span class="stat-value" id="minNCZ">0.000</span></div>
+                        <div class="stat-item"><span class="stat-label">最大</span><span class="stat-value" id="maxNCZ">0.000</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary); text-align: center;">オーバートラベル判定用 (機械座標系での絶対位置)</h3>
             <div class="summary-grid">
                 <div class="summary-card">
                     <h3>X座標 絶対位置 (mm)</h3>
@@ -450,6 +484,13 @@
         const maxXEl = document.getElementById('maxX');
         const minYEl = document.getElementById('minY');
         const maxYEl = document.getElementById('maxY');
+        
+        const minNCXEl = document.getElementById('minNCX');
+        const maxNCXEl = document.getElementById('maxNCX');
+        const minNCYEl = document.getElementById('minNCY');
+        const maxNCYEl = document.getElementById('maxNCY');
+        const minNCZEl = document.getElementById('minNCZ');
+        const maxNCZEl = document.getElementById('maxNCZ');
         
         const errorContainer = document.getElementById('errorContainer');
         const errorList = document.getElementById('errorList');
@@ -524,13 +565,19 @@
             // XYZの現在地を保持（初期値は0）
             let currentNCX = 0;
             let currentNCY = 0;
+            let currentNCZ = 0;
             let hasCoordinates = false;
+            
+            let minNCX = Infinity, maxNCX = -Infinity;
+            let minNCY = Infinity, maxNCY = -Infinity;
+            let minNCZ = Infinity, maxNCZ = -Infinity;
             
             const errors = [];
 
-            // 正規表現で X と Y の後の数値を抽出
+            // 正規表現で X と Y と Z の後の数値を抽出
             const regexX = /X([+-]?\d*\.?\d+)/;
             const regexY = /Y([+-]?\d*\.?\d+)/;
+            const regexZ = /Z([+-]?\d*\.?\d+)/;
 
             lines.forEach((line, index) => {
                 let code = line.trim();
@@ -546,6 +593,7 @@
 
                 const xMatch = code.match(regexX);
                 const yMatch = code.match(regexY);
+                const zMatch = code.match(regexZ);
 
                 let moved = false;
 
@@ -559,8 +607,21 @@
                     moved = true;
                     hasCoordinates = true;
                 }
+                if (zMatch) {
+                    currentNCZ = parseFloat(zMatch[1]);
+                    moved = true;
+                    hasCoordinates = true;
+                }
 
                 if (moved) {
+                    // NC生データの最小・最大の更新
+                    if (currentNCX < minNCX) minNCX = currentNCX;
+                    if (currentNCX > maxNCX) maxNCX = currentNCX;
+                    if (currentNCY < minNCY) minNCY = currentNCY;
+                    if (currentNCY > maxNCY) maxNCY = currentNCY;
+                    if (currentNCZ < minNCZ) minNCZ = currentNCZ;
+                    if (currentNCZ > maxNCZ) maxNCZ = currentNCZ;
+
                     // 機械座標系での絶対位置を計算
                     const absX = originX + currentNCX;
                     const absY = originY + currentNCY;
@@ -588,10 +649,10 @@
                 }
             });
 
-            renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY);
+            renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY, minNCX, maxNCX, minNCY, maxNCY, minNCZ, maxNCZ);
         }
 
-        function renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY) {
+        function renderResults(minX, maxX, minY, maxY, errors, hasCoordinates, bedX, bedY, minNCX, maxNCX, minNCY, maxNCY, minNCZ, maxNCZ) {
             resultsArea.classList.remove('hidden');
 
             if (!hasCoordinates) {
@@ -600,9 +661,13 @@
                 minYEl.textContent = '---';
                 maxYEl.textContent = '---';
                 
+                minNCXEl.textContent = '---'; maxNCXEl.textContent = '---';
+                minNCYEl.textContent = '---'; maxNCYEl.textContent = '---';
+                minNCZEl.textContent = '---'; maxNCZEl.textContent = '---';
+                
                 statusBanner.className = 'status-banner safe';
                 statusText.textContent = 'NO DATA';
-                statusDesc.textContent = 'NCプログラム内にXYの座標指定が見つかりませんでした。';
+                statusDesc.textContent = 'NCプログラム内にXYZの座標指定が見つかりませんでした。';
                 errorContainer.classList.add('hidden');
                 return;
             }
@@ -611,6 +676,13 @@
             maxXEl.textContent = maxX.toFixed(3);
             minYEl.textContent = minY.toFixed(3);
             maxYEl.textContent = maxY.toFixed(3);
+
+            minNCXEl.textContent = (minNCX === Infinity) ? '---' : minNCX.toFixed(3);
+            maxNCXEl.textContent = (maxNCX === -Infinity) ? '---' : maxNCX.toFixed(3);
+            minNCYEl.textContent = (minNCY === Infinity) ? '---' : minNCY.toFixed(3);
+            maxNCYEl.textContent = (maxNCY === -Infinity) ? '---' : maxNCY.toFixed(3);
+            minNCZEl.textContent = (minNCZ === Infinity) ? '---' : minNCZ.toFixed(3);
+            maxNCZEl.textContent = (maxNCZ === -Infinity) ? '---' : maxNCZ.toFixed(3);
 
             // 全体がベッドサイズを超えている場合は赤いテキストにする
             minXEl.style.color = (minX < 0) ? 'var(--danger-color)' : 'var(--text-primary)';
